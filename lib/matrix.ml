@@ -31,6 +31,9 @@ let get (mat: t) x y =
 let set (mat: t) x y value =
   mat.arr.((x*mat.cols) + y) <- value
 
+let map (f: float -> float) (mat: t): t =
+  { mat with arr = Array.map f mat.arr }
+
 let show (mat: t): unit =
   print_string "[\n";
   for x = 0 to mat.rows - 1 do
