@@ -3,6 +3,9 @@
 A machine learning library written in OCaml with no external
 dependencies. See `examples/` directory for usage.
 
+This project is made purely for educational purposes and is not
+suitable for use in performance demanding applications.
+
 ## Work In Progress
 
 There is a working example of an OR gate model in
