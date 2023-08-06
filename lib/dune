@@ -1,2 +1,4 @@
 (library
-  (name camel_learning))
+ (name camel_learning))
+
+(env (dev (flags (:standard -warn-error -A))))
