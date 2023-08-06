@@ -16,6 +16,12 @@ let random_range (rows: int) (cols: int) (min: float) (max: float): t =
     cols = cols;
   }
 
+let from_3d_list (list: float list list): t =
+  { arr = Array.of_list (List.flatten list);
+    rows = List.length list;
+    cols = List.length (List.hd list);
+  }
+
 let random (rows: int) (cols: int): t =
   random_range rows cols 0. 1.
 
@@ -54,3 +60,9 @@ let dot (a: t) (b: t): t =
     done
   done;
   res
+
+let take_row (mat: t) (row: int): t =
+  { arr = Array.sub mat.arr (row * mat.cols) mat.cols;
+    rows = 1;
+    cols = mat.cols;
+  }
