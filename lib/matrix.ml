@@ -54,15 +54,3 @@ let dot (a: t) (b: t): t =
     done
   done;
   res
-
-let demo () =
-  let ws = [| random 1 2; random 2 1 |] in
-  let bs = [| random 1 2; random 1 1 |] in
-
-  let input = zeros 1 1 in
-  input.arr.(0) <- 1.;
-  let pass1 = dot input ws.(0) in
-  let pass15 = sum pass1 bs.(0) in
-  let pass2 = dot pass15 ws.(1) in
-  let pass25 = sum pass2 bs.(1) in
-  pass2

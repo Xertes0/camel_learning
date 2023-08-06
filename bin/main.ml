@@ -1,2 +1,3 @@
 let () =
-  Camel_learning.Matrix.say ();;
+  print_endline "Hello world"
+  (* Camel_learning.Matrix.say ();; *)
