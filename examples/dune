@@ -1,3 +1,9 @@
-(executable
- (name or_gate)
+(library
+ (name demo)
+ (modules demo)
  (libraries camel_learning))
+
+(executables
+ (names or_gate xor_gate)
+ (modules or_gate xor_gate)
+ (libraries demo camel_learning))
