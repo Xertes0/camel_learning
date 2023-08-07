@@ -10,8 +10,15 @@ suitable for use in performance demanding applications.
 
 Currently the two supported methods of learning are:
 
-  - using [finite differences](https://en.wikipedia.org/wiki/Finite_difference),
-  - using [back propagation](https://en.wikipedia.org/wiki/Backpropagation).
+ - using [finite differences](https://en.wikipedia.org/wiki/Finite_difference),
+ - using [back propagation](https://en.wikipedia.org/wiki/Backpropagation).
+
+## Activation functions
+
+Implemented activation functions to choose from are:
+
+ - [Sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function),
+ - [ReLU](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)).
 
 ## MNIST database model
 
