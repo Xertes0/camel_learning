@@ -16,14 +16,27 @@ let random_range (rows: int) (cols: int) (min: float) (max: float): t =
     cols = cols;
   }
 
+let random (rows: int) (cols: int): t =
+  random_range rows cols 0. 1.
+
 let from_3d_list (list: float list list): t =
   { arr = Array.of_list (List.flatten list);
     rows = List.length list;
     cols = List.length (List.hd list);
   }
 
-let random (rows: int) (cols: int): t =
-  random_range rows cols 0. 1.
+let init (rows: int) (cols: int) (f: int -> int -> float): t =
+  { arr = Array.init (rows * cols) (fun i -> f (i/cols) (i mod cols));
+    rows = rows;
+    cols = cols;
+  }
+
+let from_array (rows: int) (cols: int) (arr: float array): t =
+  assert (Array.length arr = rows * cols);
+  { arr = arr;
+    rows = rows;
+    cols = cols;
+  }
 
 let get (mat: t) x y =
   mat.arr.((x*mat.cols) + y)

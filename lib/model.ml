@@ -5,14 +5,17 @@ type t =
     bs : Matrix.t array;
   }
 
-let random (shape: int array): t =
+let random_range (shape: int array) (min: float) (max: float): t =
   let ws = Array.init (Array.length shape - 1)
-             (fun i -> Mat.random shape.(i) shape.(i+1)) in
+             (fun i -> Mat.random_range shape.(i) shape.(i+1) min max) in
   let bs = Array.init (Array.length shape - 1)
-             (fun i -> Mat.random 1 shape.(i+1)) in
+             (fun i -> Mat.random_range 1 shape.(i+1) min max) in
   { ws = ws;
     bs = bs;
   }
+
+let random (shape: int array): t =
+  random_range shape 0. 1.
 
 let gradient_for_model (model: t): t =
   let ws = Array.init (Array.length model.ws)
@@ -43,7 +46,7 @@ let cost (model: t) ~(tx: Mat.t) ~(ty: Mat.t): float =
       sum := !sum +. (Float.abs diff)
     done
   done;
-  !sum
+  (!sum /. (Float.of_int (ty.cols * tx.rows)))
 
 let finite_difference
       (model: t)
@@ -158,3 +161,22 @@ let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
     let error = Array.fold_left ( +. ) 0. error_mat.arr in
     Printf.printf "\tError: %f\n" error;
   done
+
+let random_train_set (tx: Mat.t) (ty: Mat.t) (count: int): Mat.t * Mat.t =
+  assert (tx.rows = ty.rows);
+  let new_tx = ref (Array.make 0 0.) in
+  let new_ty = ref (Array.make 0 0.) in
+  for i = 0 to count - 1 do
+    (* We just hope row_i won't repeat in a single call *)
+    let row_i = Random.int tx.rows in
+    new_tx := Array.append !new_tx (Mat.take_row tx row_i).arr;
+    new_ty := Array.append !new_ty (Mat.take_row ty row_i).arr
+  done;
+  ( { arr = !new_tx;
+      rows = count;
+      cols = tx.cols;
+    },
+    { arr = !new_ty;
+      rows = count;
+      cols = ty.cols;
+  } )

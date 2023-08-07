@@ -4,6 +4,8 @@
  (libraries camel_learning))
 
 (executables
- (names or_gate xor_gate)
- (modules or_gate xor_gate)
+ (names or_gate xor_gate mnist)
+ (modules or_gate xor_gate mnist)
  (libraries demo camel_learning))
+
+(env (dev (flags (:standard -warn-error -A))))
