@@ -31,6 +31,9 @@ let get (mat: t) x y =
 let set (mat: t) x y value =
   mat.arr.((x*mat.cols) + y) <- value
 
+let set_with (mat: t) (row: int) (col: int) (f: float -> float): unit =
+  set mat row col (f (get mat row col))
+
 let map (f: float -> float) (mat: t): t =
   { mat with arr = Array.map f mat.arr }
 

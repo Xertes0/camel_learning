@@ -111,44 +111,25 @@ let back_propagation
       for a_col = 0 to grad_a.(a_i).cols - 1 do
         let sigm = Mat.get model_a.(a_i) 0 a_col in
         let first = 2. *. (Mat.get grad_a.(a_i) 0 a_col) *. sigm *. (1. -. sigm) in
-        Mat.set grad.bs.(a_i - 1) 0 a_col
-          ((Mat.get grad.bs.(a_i - 1) 0 a_col) +. first);
+        Mat.set_with grad.bs.(a_i - 1) 0 a_col
+          (fun x -> x +. first);
         for w_row = 0 to grad.ws.(a_i - 1).rows - 1 do
-          Mat.set grad.ws.(a_i - 1) w_row a_col
-            ((Mat.get grad.ws.(a_i - 1) w_row a_col) +.
-               (first *. (Mat.get model_a.(a_i - 1) 0 w_row)));
-          Mat.set grad_a.(a_i - 1) 0 w_row
-            ((Mat.get grad_a.(a_i - 1) 0 w_row) +.
-               (first *. (Mat.get model.ws.(a_i - 1) w_row a_col)));
+          Mat.set_with grad.ws.(a_i - 1) w_row a_col
+            (fun x -> x +. (first *. (Mat.get model_a.(a_i - 1) 0 w_row)));
+          Mat.set_with grad_a.(a_i - 1) 0 w_row
+            (fun x -> x +. (first *. (Mat.get model.ws.(a_i - 1) w_row a_col)));
         done
       done
     done
   done;
-  for i = 0 to Array.length grad.ws - 1 do
-    for row = 0 to grad.ws.(i).rows - 1 do
-      for col = 0 to grad.ws.(i).cols - 1 do
-        Mat.set grad.ws.(i) row col
-          ((-.(Mat.get grad.ws.(i) row col)) *. rate /. (Float.of_int tx.rows))
-      done
-    done;
-    for row = 0 to grad.bs.(i).rows - 1 do
-      for col = 0 to grad.bs.(i).cols - 1 do
-        Mat.set grad.bs.(i) row col
-          ((-.(Mat.get grad.bs.(i) row col)) *. rate /. (Float.of_int tx.rows))
-      done
-    done;
-  done;
-  grad
+  { ws = Array.map (Mat.map (fun x -> (-.x) *. rate /. (Float.of_int tx.rows))) grad.ws;
+    bs = Array.map (Mat.map (fun x -> (-.x) *. rate /. (Float.of_int tx.rows))) grad.bs;
+  }
 
-let apply_gradient (model: t) (grad: t): unit =
-  for w_i = 0 to Array.length model.ws - 1 do
-    model.ws.(w_i) <-
-      Mat.sum model.ws.(w_i) grad.ws.(w_i);
-  done;
-  for b_i = 0 to Array.length model.bs - 1 do
-    model.bs.(b_i) <-
-      Mat.sum model.bs.(b_i) grad.bs.(b_i);
-  done
+let apply_gradient (model: t) (grad: t): t =
+  { ws = Array.mapi (fun i x -> Mat.sum x grad.ws.(i)) model.ws;
+    bs = Array.mapi (fun i x -> Mat.sum x grad.bs.(i)) model.bs;
+  }
 
 let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
   for t_row = 0 to tx.rows - 1 do
@@ -167,7 +148,8 @@ let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
     Mat.show output;
 
     let error_mat = Mat.map (fun x -> -. x) output
-                    |> Mat.sum expected in
+                    |> Mat.sum expected
+                    |> Mat.map (fun x -> Float.abs x) in
                     (* |> Mat.map (fun x -> x ** 2.) in *)
     let error = Array.fold_left ( +. ) 0. error_mat.arr in
     Printf.printf "Error: %f\n" error;
