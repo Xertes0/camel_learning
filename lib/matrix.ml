@@ -10,14 +10,13 @@ let zeros (rows: int) (cols: int): t =
     cols = cols;
   }
 
-let random_range (rows: int) (cols: int) (min: float) (max: float): t =
+let random
+      (rows: int) (cols: int)
+      ?(min=(-. 1.)) ?(max=1.) (): t =
   { arr = Array.init (rows * cols) (fun _ -> (Random.float (max -. min) +. min));
     rows = rows;
     cols = cols;
   }
-
-let random (rows: int) (cols: int): t =
-  random_range rows cols 0. 1.
 
 let from_3d_list (list: float list list): t =
   { arr = Array.of_list (List.flatten list);

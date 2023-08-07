@@ -13,4 +13,6 @@ Demo.run
              [ 1. ];
              [ 0. ] ];
     shape = [| 2; 2; 1; |];
+    rate = 1.;
+    actf = Act_func.sigmoid;
   } ()

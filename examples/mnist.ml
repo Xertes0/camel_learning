@@ -53,11 +53,15 @@ let main () =
 
   Random.self_init ();
   let shape = [| 784; 128; 10; |] in
-  let model = ref (Model.random_range shape 0.02 0.12) in
+  let model = ref (Model.random shape ~actf:Act_func.relu ()) in
 
   let print_cost () =
+    let (rand_tx, rand_ty) = Model.random_train_set train_images train_labels 2 in
+    Printf.printf "Cost of train data: %f\n" (Model.cost !model ~tx:rand_tx ~ty:rand_ty);
+
     let (rand_tx, rand_ty) = Model.random_train_set test_images test_labels 2 in
-    Printf.printf "Cost: %f\n" (Model.cost !model ~tx:rand_tx ~ty:rand_ty);
+    Printf.printf "Cost of unseen data: %f\n" (Model.cost !model ~tx:rand_tx ~ty:rand_ty);
+
     Stdlib.flush Stdlib.stdout;
   in
 
@@ -66,8 +70,8 @@ let main () =
   while !interrupted = false do
     iter := !iter + 1;
 
-    let (rand_tx, rand_ty) = Model.random_train_set train_images train_labels 32 in
-    let grad = Model.back_propagation !model ~tx:rand_tx ~ty:rand_ty ~rate:0.01 in
+    let (rand_tx, rand_ty) = Model.random_train_set train_images train_labels 64 in
+    let grad = Model.back_propagation !model ~tx:rand_tx ~ty:rand_ty ~rate:0.001 in
     model := Model.apply_gradient !model grad;
 
     if !iter mod 10 = 0 then

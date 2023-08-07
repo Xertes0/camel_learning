@@ -3,19 +3,21 @@ module Mat = Matrix
 type t =
   { ws : Matrix.t array;
     bs : Matrix.t array;
+    actf : Act_func.t;
   }
 
-let random_range (shape: int array) (min: float) (max: float): t =
+let random
+      (shape: int array)
+      ?(min=(-. 1.)) ?(max=1.)
+      ?(actf=Act_func.sigmoid) (): t =
   let ws = Array.init (Array.length shape - 1)
-             (fun i -> Mat.random_range shape.(i) shape.(i+1) min max) in
+             (fun i -> Mat.random shape.(i) shape.(i+1) ~min ~max ()) in
   let bs = Array.init (Array.length shape - 1)
-             (fun i -> Mat.random_range 1 shape.(i+1) min max) in
+             (fun i -> Mat.random 1 shape.(i+1) ~min ~max ()) in
   { ws = ws;
     bs = bs;
+    actf = actf;
   }
-
-let random (shape: int array): t =
-  random_range shape 0. 1.
 
 let gradient_for_model (model: t): t =
   let ws = Array.init (Array.length model.ws)
@@ -24,16 +26,14 @@ let gradient_for_model (model: t): t =
              (fun i -> Mat.zeros model.bs.(i).rows model.bs.(i).cols) in
   { ws = ws;
     bs = bs;
+    actf = model.actf;
   }
-
-let sigmoid (v: float): float =
-  1. /. (1. +. Float.exp (-. v))
 
 let forward (model: t) (input: Mat.t): Mat.t =
   let ws = Array.to_seq model.ws in
   let bs = Array.to_seq model.bs in
   let fwd_layer x w b =
-    Mat.map sigmoid (Mat.sum (Mat.dot x w) b) in
+    Mat.map model.actf.f (Mat.sum (Mat.dot x w) b) in
   Seq.fold_left2 fwd_layer input ws bs
 
 let cost (model: t) ~(tx: Mat.t) ~(ty: Mat.t): float =
@@ -91,7 +91,7 @@ let forward_collect (model: t) (input: Mat.t): Mat.t array =
   let ws = Array.to_seq model.ws in
   let bs = Array.to_seq model.bs in
   let fwd_layer x (w, b) =
-    Mat.map sigmoid (Mat.sum (Mat.dot x w) b) in
+    Mat.map model.actf.f (Mat.sum (Mat.dot x w) b) in
   Seq.scan fwd_layer input (Seq.zip ws bs)
   |> Array.of_seq
 
@@ -112,8 +112,8 @@ let back_propagation
     done;
     for a_i = a_len - 1 downto 1 do
       for a_col = 0 to grad_a.(a_i).cols - 1 do
-        let sigm = Mat.get model_a.(a_i) 0 a_col in
-        let first = 2. *. (Mat.get grad_a.(a_i) 0 a_col) *. sigm *. (1. -. sigm) in
+        let act_out = Mat.get model_a.(a_i) 0 a_col in
+        let first = 2. *. (Mat.get grad_a.(a_i) 0 a_col) *. (model.actf.d act_out) in
         Mat.set_with grad.bs.(a_i - 1) 0 a_col
           (fun x -> x +. first);
         for w_row = 0 to grad.ws.(a_i - 1).rows - 1 do
@@ -125,12 +125,14 @@ let back_propagation
       done
     done
   done;
-  { ws = Array.map (Mat.map (fun x -> (-.x) *. rate /. (Float.of_int tx.rows))) grad.ws;
+  { model with
+    ws = Array.map (Mat.map (fun x -> (-.x) *. rate /. (Float.of_int tx.rows))) grad.ws;
     bs = Array.map (Mat.map (fun x -> (-.x) *. rate /. (Float.of_int tx.rows))) grad.bs;
   }
 
 let apply_gradient (model: t) (grad: t): t =
-  { ws = Array.mapi (fun i x -> Mat.sum x grad.ws.(i)) model.ws;
+  { model with
+    ws = Array.mapi (fun i x -> Mat.sum x grad.ws.(i)) model.ws;
     bs = Array.mapi (fun i x -> Mat.sum x grad.bs.(i)) model.bs;
   }
 
@@ -166,7 +168,7 @@ let random_train_set (tx: Mat.t) (ty: Mat.t) (count: int): Mat.t * Mat.t =
   assert (tx.rows = ty.rows);
   let new_tx = ref (Array.make 0 0.) in
   let new_ty = ref (Array.make 0 0.) in
-  for i = 0 to count - 1 do
+  for _ = 0 to count - 1 do
     (* We just hope row_i won't repeat in a single call *)
     let row_i = Random.int tx.rows in
     new_tx := Array.append !new_tx (Mat.take_row tx row_i).arr;
