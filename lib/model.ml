@@ -40,7 +40,7 @@ let cost (model: t) ~(tx: Mat.t) ~(ty: Mat.t): float =
     for y_col = 0 to ty.cols - 1 do
       let diff = (Mat.get ty t_row y_col) -.
                  (Mat.get output 0 y_col) in
-      sum := !sum +. (diff ** 2.)
+      sum := !sum +. (Float.abs diff)
     done
   done;
   !sum
@@ -132,25 +132,29 @@ let apply_gradient (model: t) (grad: t): t =
   }
 
 let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
+  let print_row (row: Mat.t): unit =
+    Printf.printf "[ ";
+    Array.iter (fun x -> Printf.printf "%f, " x) row.arr;
+    Printf.printf "]\n";
+  in
   for t_row = 0 to tx.rows - 1 do
     Printf.printf "=== Test %i/%i ===\n" (t_row + 1) tx.rows;
 
-    Printf.printf "For input:\n";
+    Printf.printf "\tFor input: ";
     let input = Mat.take_row tx t_row in
-    Mat.show input;
+    print_row input;
 
-    Printf.printf "Expected:\n";
+    Printf.printf "\tExpected: ";
     let expected = Mat.take_row ty t_row in
-    Mat.show expected;
+    print_row expected;
 
-    Printf.printf "Got:\n";
+    Printf.printf "\tReceived: ";
     let output = forward model input in
-    Mat.show output;
+    print_row output;
 
     let error_mat = Mat.map (fun x -> -. x) output
                     |> Mat.sum expected
                     |> Mat.map (fun x -> Float.abs x) in
-                    (* |> Mat.map (fun x -> x ** 2.) in *)
     let error = Array.fold_left ( +. ) 0. error_mat.arr in
-    Printf.printf "Error: %f\n" error;
+    Printf.printf "\tError: %f\n" error;
   done
