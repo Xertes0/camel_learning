@@ -77,6 +77,69 @@ let finite_difference
   done;
   grad
 
+(*
+  Like forward but returns an array where:
+   - first item is the given input
+   - last item is the model's output
+   - every item in between is the result of
+     passing the previous item by one layer
+ *)
+let forward_collect (model: t) (input: Mat.t): Mat.t array =
+  let ws = Array.to_seq model.ws in
+  let bs = Array.to_seq model.bs in
+  let fwd_layer x (w, b) =
+    Mat.map sigmoid (Mat.sum (Mat.dot x w) b) in
+  Seq.scan fwd_layer input (Seq.zip ws bs)
+  |> Array.of_seq
+
+let back_propagation
+      (model: t)
+      ~(tx: Mat.t) ~(ty: Mat.t)
+      ~(rate: float): t =
+  let grad = gradient_for_model model in
+  for t_row = 0 to tx.rows - 1 do
+    let tx_row = Mat.take_row tx t_row in
+    let model_a = forward_collect model tx_row in
+    let grad_a = Array.init (Array.length model_a) (fun i -> Mat.zeros model_a.(i).rows model_a.(i).cols) in
+    let a_len = Array.length model_a in
+    for t_col = 0 to ty.cols - 1 do
+      Mat.set grad_a.(a_len - 1) 0 t_col
+        ((Mat.get model_a.(a_len - 1) 0 t_col) -.
+           (Mat.get ty t_row t_col));
+    done;
+    for a_i = a_len - 1 downto 1 do
+      for a_col = 0 to grad_a.(a_i).cols - 1 do
+        let sigm = Mat.get model_a.(a_i) 0 a_col in
+        let first = 2. *. (Mat.get grad_a.(a_i) 0 a_col) *. sigm *. (1. -. sigm) in
+        Mat.set grad.bs.(a_i - 1) 0 a_col
+          ((Mat.get grad.bs.(a_i - 1) 0 a_col) +. first);
+        for w_row = 0 to grad.ws.(a_i - 1).rows - 1 do
+          Mat.set grad.ws.(a_i - 1) w_row a_col
+            ((Mat.get grad.ws.(a_i - 1) w_row a_col) +.
+               (first *. (Mat.get model_a.(a_i - 1) 0 w_row)));
+          Mat.set grad_a.(a_i - 1) 0 w_row
+            ((Mat.get grad_a.(a_i - 1) 0 w_row) +.
+               (first *. (Mat.get model.ws.(a_i - 1) w_row a_col)));
+        done
+      done
+    done
+  done;
+  for i = 0 to Array.length grad.ws - 1 do
+    for row = 0 to grad.ws.(i).rows - 1 do
+      for col = 0 to grad.ws.(i).cols - 1 do
+        Mat.set grad.ws.(i) row col
+          ((-.(Mat.get grad.ws.(i) row col)) *. rate /. (Float.of_int tx.rows))
+      done
+    done;
+    for row = 0 to grad.bs.(i).rows - 1 do
+      for col = 0 to grad.bs.(i).cols - 1 do
+        Mat.set grad.bs.(i) row col
+          ((-.(Mat.get grad.bs.(i) row col)) *. rate /. (Float.of_int tx.rows))
+      done
+    done;
+  done;
+  grad
+
 let apply_gradient (model: t) (grad: t): unit =
   for w_i = 0 to Array.length model.ws - 1 do
     model.ws.(w_i) <-
@@ -89,7 +152,7 @@ let apply_gradient (model: t) (grad: t): unit =
 
 let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
   for t_row = 0 to tx.rows - 1 do
-    Printf.printf "=== Test %i/%i ===\n" t_row (tx.rows - 1);
+    Printf.printf "=== Test %i/%i ===\n" (t_row + 1) tx.rows;
 
     Printf.printf "For input:\n";
     let input = Mat.take_row tx t_row in
