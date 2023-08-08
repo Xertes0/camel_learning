@@ -162,7 +162,8 @@ let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
                     |> Mat.map (fun x -> Float.abs x) in
     let error = Array.fold_left ( +. ) 0. error_mat.arr in
     Printf.printf "\tError: %f\n" error;
-  done
+  done;
+  Stdlib.flush Stdlib.stdout
 
 let random_train_set (tx: Mat.t) (ty: Mat.t) (count: int): Mat.t * Mat.t =
   assert (tx.rows = ty.rows);

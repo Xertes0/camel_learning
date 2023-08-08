@@ -1,7 +1,7 @@
 open Camel_learning
 
 ;;
-Demo.run
+Demo_sdl.run
   { tx = Matrix.from_3d_list
            [ [ 0.; 0. ];
              [ 0.; 1. ];

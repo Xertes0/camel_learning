@@ -38,9 +38,11 @@ let from_array (rows: int) (cols: int) (arr: float array): t =
   }
 
 let get (mat: t) x y =
+  assert (x < mat.rows && y < mat.cols && x >= 0 && y >= 0);
   mat.arr.((x*mat.cols) + y)
 
 let set (mat: t) x y value =
+  assert (x < mat.rows && y < mat.cols && x >= 0 && y >= 0);
   mat.arr.((x*mat.cols) + y) <- value
 
 let set_with (mat: t) (row: int) (col: int) (f: float -> float): unit =
