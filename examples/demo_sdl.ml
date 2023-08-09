@@ -30,7 +30,14 @@ let draw
     0x0F 0x0F 0x0F 0xFF >>= fun () ->
   Sdl.render_clear r >>= fun () ->
 
-  let scale = 1. in
+  let value_to_color =
+    fun x ->
+    x
+    |> ( *. ) (255. /. 3.)
+    |> Int.of_float
+    |> Int.abs in
+
+  let scale = 0.8 in
   let apply_scale = fun x -> x
                              |> Float.of_int
                              |> ( *. ) scale
@@ -38,18 +45,24 @@ let draw
   let x_spacing = apply_scale (screen_width / (Array.length model.ws)) in
 
   for w_i = 0 to Array.length model.ws - 1 do
-    for row = 0 to model.ws.(w_i).rows - 1 do
-      let row_y_spacing = apply_scale (screen_height / model.ws.(w_i).rows) in
-      let col_y_spacing = apply_scale (screen_height / model.ws.(w_i).cols) in
+    let row_y_spacing = apply_scale (screen_height / model.ws.(w_i).rows) in
+    let col_y_spacing = apply_scale (screen_height / model.ws.(w_i).cols) in
+    let rect_size = col_y_spacing / 2 in
 
-      for col = 0 to model.ws.(w_i).cols - 1 do
-        let color = Matrix.get model.ws.(w_i) row col
-                    |> ( +. ) 1.
-                    |> ( /. ) 2.
-                    |> ( *. ) 255.
-                    |> Int.of_float in
+    for col = 0 to model.ws.(w_i).cols - 1 do
+      let bcolor = value_to_color (Matrix.get model.bs.(w_i) 0 col) in
+      Sdl.set_render_draw_color r
+        (Int.max 0 (bcolor - 0xFF)) (Int.max 0 (bcolor - (0xFF * 2))) (Int.min 0xFF bcolor) (Int.min 0xFF bcolor) >>= fun () ->
+      let brect = Sdl.Rect.create
+                    ~x:(((w_i + 1) * x_spacing) - (rect_size / 2))
+                    ~y:((col * col_y_spacing) + (col_y_spacing / 2) - (rect_size / 2))
+                    ~w:rect_size ~h:rect_size in
+      Sdl.render_fill_rect r (Some brect) >>= fun () ->
+
+      for row = 0 to model.ws.(w_i).rows - 1 do
+        let wcolor = value_to_color (Matrix.get model.ws.(w_i) row col) in
         Sdl.set_render_draw_color r
-          0xFF color color 0xFF >>= fun () ->
+          (Int.max 0 (wcolor - 0xFF)) (Int.max 0 (wcolor - (0xFF * 2))) (Int.min 0xFF wcolor) (Int.min 0xFF wcolor) >>= fun () ->
         Sdl.render_draw_line r
           (w_i * x_spacing) ((row * row_y_spacing) + (row_y_spacing / 2))
           ((w_i + 1) * x_spacing) ((col * col_y_spacing) + (col_y_spacing / 2)) >>= fun () ->
