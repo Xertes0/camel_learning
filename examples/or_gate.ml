@@ -12,6 +12,7 @@ Demo_sdl.run
              [ 1. ];
              [ 1. ];
              [ 1. ] ];
+    chunk_size = None;
     shape = [| 2; 1; |];
     rate = 1.;
     actf = Act_func.sigmoid;

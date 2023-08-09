@@ -53,13 +53,13 @@ let main () =
 
   Random.self_init ();
   let shape = [| 784; 128; 10; |] in
-  let model = ref (Model.random shape ~actf:Act_func.relu ()) in
+  let model = ref (Model.random shape ~actf:Act_func.sigmoid ()) in
 
   let print_cost () =
-    let (rand_tx, rand_ty) = Model.random_train_set train_images train_labels 2 in
+    let (rand_tx, rand_ty) = Model.chunk_train_set 2 0 (train_images, train_labels) in
     Printf.printf "Cost of train data: %f\n" (Model.cost !model ~tx:rand_tx ~ty:rand_ty);
 
-    let (rand_tx, rand_ty) = Model.random_train_set test_images test_labels 2 in
+    let (rand_tx, rand_ty) = Model.chunk_train_set 2 0 (test_images, test_labels) in
     Printf.printf "Cost of unseen data: %f\n" (Model.cost !model ~tx:rand_tx ~ty:rand_ty);
 
     Stdlib.flush Stdlib.stdout;
@@ -70,8 +70,8 @@ let main () =
   while !interrupted = false do
     iter := !iter + 1;
 
-    let (rand_tx, rand_ty) = Model.random_train_set train_images train_labels 64 in
-    let grad = Model.back_propagation !model ~tx:rand_tx ~ty:rand_ty ~rate:0.001 in
+    let (rand_tx, rand_ty) = Model.chunk_train_set 64 (!iter mod (train_images.rows / 64)) (train_images, train_labels) in
+    let grad = Model.back_propagation !model ~tx:rand_tx ~ty:rand_ty ~rate:1. in
     model := Model.apply_gradient !model grad;
 
     if !iter mod 10 = 0 then
@@ -79,7 +79,7 @@ let main () =
   done;
   print_endline "Interrupted\n";
 
-  let (rand_tx, rand_ty) = Model.random_train_set test_images test_labels 10 in
+  let (rand_tx, rand_ty) = Model.chunk_train_set 10 0 (test_images, test_labels) in
   Model.evaluate !model ~tx:rand_tx ~ty:rand_ty;
 
 ;;

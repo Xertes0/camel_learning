@@ -165,21 +165,25 @@ let evaluate (model: t) ~(tx: Mat.t) ~(ty: Mat.t): unit =
   done;
   Stdlib.flush Stdlib.stdout
 
-let random_train_set (tx: Mat.t) (ty: Mat.t) (count: int): Mat.t * Mat.t =
-  assert (tx.rows = ty.rows);
-  let new_tx = ref (Array.make 0 0.) in
-  let new_ty = ref (Array.make 0 0.) in
-  for _ = 0 to count - 1 do
-    (* We just hope row_i won't repeat in a single call *)
-    let row_i = Random.int tx.rows in
-    new_tx := Array.append !new_tx (Mat.take_row tx row_i).arr;
-    new_ty := Array.append !new_ty (Mat.take_row ty row_i).arr
+let chunk_train_set (count: int) (nth: int) ((tx, ty): Mat.t * Mat.t): Mat.t * Mat.t =
+  let max = ((count * (nth + 1)) + count) in
+  let actual_count =
+    if tx.rows <= max
+    then count + ((tx.rows + count) - max)
+    else count
+  in
+
+  let tx_arr = ref (Array.make 0 0.) in
+  let ty_arr = ref (Array.make 0 0.) in
+  for i = 0 to actual_count - 1 do
+    tx_arr := Array.append !tx_arr (Mat.take_row tx ((count * nth) + i)).arr;
+    ty_arr := Array.append !ty_arr (Mat.take_row ty ((count * nth) + i)).arr;
   done;
-  ( { arr = !new_tx;
-      rows = count;
-      cols = tx.cols;
-    },
-    { arr = !new_ty;
-      rows = count;
-      cols = ty.cols;
-  } )
+  { tx with
+    arr = !tx_arr;
+    rows = actual_count
+  },
+  { ty with
+    arr = !ty_arr;
+    rows = actual_count
+  }

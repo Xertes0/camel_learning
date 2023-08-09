@@ -6,6 +6,7 @@ type t =
   { shape : int array;
     tx : Matrix.t;
     ty : Matrix.t;
+    chunk_size: int option;
     rate : float;
     actf : Act_func.t;
   }
@@ -86,8 +87,16 @@ let window_loop
 
     (* Train model every time *)
     if !last_cost > goal then (
-      let grad = Model.back_propagation !model ~tx:demo.tx ~ty:demo.ty ~rate:demo.rate in
-      model := Model.apply_gradient !model grad;
+      (match demo.chunk_size with
+       | Some size ->
+          for i = 0 to (demo.tx.rows / size) - 1 do
+            let (tx, ty) = Model.chunk_train_set size i (demo.tx, demo.ty) in
+            let grad = Model.back_propagation !model ~tx ~ty ~rate:demo.rate in
+            model := Model.apply_gradient !model grad;
+          done;
+       | None ->
+          let grad = Model.back_propagation !model ~tx:demo.tx ~ty:demo.ty ~rate:demo.rate in
+          model := Model.apply_gradient !model grad; );
 
       if !iter_count mod 10 = 0 then
         last_cost := Model.cost !model ~tx:demo.tx ~ty:demo.ty;

@@ -33,9 +33,10 @@ let (tx, ty) =
 Demo_sdl.run
   { tx = tx;
     ty = ty;
-    shape = [| 8; 8; 5; |];
+    chunk_size = Some (256 / 16);
+    shape = [| 8; 16; 5; |];
     rate = 1.;
     actf = Act_func.sigmoid;
   }
-  ~goal:0.05
+  ~goal:0.01
   ()
