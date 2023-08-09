@@ -22,9 +22,9 @@ Implemented activation functions to choose from are:
 
 ## MNIST database model
 
-There is an attempt at creating a MNIST database model in the examples
-directory but I could not get any decent results from it. Two possible
-causes I can think of are: the use of sigmoid activation function
-instead of ReLU.  And the fact that this library is too slow: the
-actual training must probably be done with a much lower learning rate
-but decreasing it also means waiting longer for the results.
+There is a working model trained on the
+[MNIST](http://yann.lecun.com/exdb/mnist/) database. It trains the
+fastest using sigmoid activation function and learning rate of 1.0,
+but you can also use ReLU with learning rate of (from my tests) at
+most 0.01. Using this configuration will be slower but you may achieve
+better results, if you do, please share them with me :D
