@@ -91,6 +91,7 @@ let window_loop
   Ttf.open_font "./font.ttf" 32 >>= fun font ->
 
   let model = ref (Model.random demo.shape ~actf:demo.actf ()) in
+  (* model := Model.load_from_file !model "save.model"; *)
   let iter_count = ref 0 in
 
   let quit = ref false in
@@ -116,6 +117,7 @@ let window_loop
     ) else if !evaluated = false then (
       Printf.printf "Model reached the cost of %f after %i iterations.\n" !last_cost !iter_count;
       Model.evaluate !model ~tx:demo.tx ~ty:demo.ty;
+      (* Model.save_to_file !model "save.model"; *)
       evaluated := true;
     );
 

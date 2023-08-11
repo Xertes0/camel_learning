@@ -187,3 +187,54 @@ let chunk_train_set (count: int) (nth: int) ((tx, ty): Mat.t * Mat.t): Mat.t * M
     arr = !ty_arr;
     rows = actual_count
   }
+
+let from_bytes (model: t) (buf: bytes): t =
+  let pos = ref (- 8) in
+  let f (mat: Mat.t) =
+    { mat with
+      arr = Array.init (mat.rows * mat.cols) (fun _ ->
+                pos := !pos + 8;
+                Int64.float_of_bits (Bytes.get_int64_be buf !pos))
+    } in
+
+  (* Could not find any confirmation wheater the evaluation order in
+     record constructor is always reversed so I first bounded them to
+     variables *)
+  let ws = Array.map f model.ws in
+  let bs = Array.map f model.bs in
+  { model with
+    ws = ws;
+    bs = bs;
+  }
+
+let bytes_of_model (model: t): bytes =
+  let model_size =
+    let f (prev: int) (x: Mat.t) = prev + (x.rows * x.cols) in
+    (Array.fold_left f 0 model.ws) + (Array.fold_left f 0 model.bs)
+  in
+
+  let buf = Bytes.create (model_size * 8) in
+  let pos = ref 0 in
+  let f (mat: Mat.t) =
+    Array.iter (fun x ->
+        Bytes.set_int64_be buf !pos (Int64.bits_of_float x);
+        pos := !pos + 8)
+      mat.arr in
+  Array.iter f model.ws;
+  Array.iter f model.bs;
+  buf
+
+let save_to_file (model: t) (path: string): unit =
+  let chan = open_out_bin path in
+  Stdlib.output_bytes chan (bytes_of_model model);
+  Stdlib.close_out chan
+
+let load_from_file (model: t) (path: string): t =
+  let bin_file =
+    let chan = Stdlib.open_in_bin path in
+    let chan_len = Stdlib.in_channel_length chan in
+    let buf = Bytes.create chan_len in
+    Stdlib.really_input chan buf 0 chan_len;
+    Stdlib.close_in chan;
+    buf in
+  from_bytes model bin_file
