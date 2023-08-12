@@ -6,6 +6,26 @@ dependencies. See `examples/` directory for example models.
 This project is made purely for educational purposes and is not
 suitable for use in performance demanding applications.
 
+## MNIST model visualization
+
+![Screenshot of running `examples/mnist_sdl.ml`](images/mnist_sdl.png)
+
+There is a working model trained on the
+[MNIST](http://yann.lecun.com/exdb/mnist/) database.
+
+To run the SDL demo you first need to train the model using
+`examples/mnist_train.ml`.
+
+By default it trains using sigmoid activation function and learning
+rate of 1.0, this is what I found to be the best configuration, but
+you can also use ReLU with learning rate of (from my tests) at most
+0.01. Using this configuration will be slower but you may achieve
+better results.
+
+Interrupting the program with `C-c` will stop the training and save
+the results to `mnist.model` file, which then can be loaded by
+`examples/mnist_sdl.ml` to visualize the model.
+
 ## Algorithms
 
 Currently the two supported methods of learning are:
@@ -19,12 +39,3 @@ Implemented activation functions to choose from are:
 
  - [Sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function),
  - [ReLU](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)).
-
-## MNIST database model
-
-There is a working model trained on the
-[MNIST](http://yann.lecun.com/exdb/mnist/) database. It trains the
-fastest using sigmoid activation function and learning rate of 1.0,
-but you can also use ReLU with learning rate of (from my tests) at
-most 0.01. Using this configuration will be slower but you may achieve
-better results, if you do, please share them with me :D

@@ -4,8 +4,8 @@
  (libraries tsdl tsdl-ttf camel_learning))
 
 (executables
- (names adder or_gate xor_gate mnist)
- (modules adder or_gate xor_gate mnist)
+ (names adder or_gate xor_gate mnist_train mnist_sdl)
+ (modules adder or_gate xor_gate mnist_train mnist_sdl mnist_common)
  (libraries demo_sdl camel_learning))
 
 (env (dev (flags (:standard -warn-error -A))))

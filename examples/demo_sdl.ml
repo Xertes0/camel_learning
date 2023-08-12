@@ -1,6 +1,6 @@
+open Camel_learning
 open Tsdl
 open Tsdl_ttf
-open Camel_learning
 
 type t =
   { shape : int array;
