@@ -53,9 +53,9 @@ let render_model (model: Model.t) (act: Matrix.t array) (r: Sdl.renderer): unit 
         Sdl.set_render_draw_color r
           (Int.max 0 (color - 0xFF)) (Int.max 0 (color - (0xFF * 2))) (Int.min 0xFF color) (Int.min 0xFF color) >>= fun () ->
         let rect = Sdl.Rect.create
-                      ~x:(Int.of_float (((Float.of_int w_i) *. x_spacing) +. ((Float.of_int row) *. rectw)))
-                      ~y:(Int.of_float (Float.of_int col *. col_y_spacing))
-                      ~w:(Int.of_float rectw) ~h:(Int.of_float recth) in
+                     ~x:(Int.of_float (((Float.of_int w_i) *. x_spacing) +. ((Float.of_int row) *. rectw)))
+                     ~y:(Int.of_float (Float.of_int col *. col_y_spacing))
+                     ~w:(Int.of_float rectw) ~h:(Int.of_float recth) in
         Sdl.render_fill_rect r (Some rect) >>= fun () -> ()
       done
     done
