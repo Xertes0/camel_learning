@@ -81,8 +81,9 @@ let window_loop (r: Sdl.renderer) =
   model := Model.load_from_file !model "mnist.model";
 
   let image_row = ref 0 in
-  let output = ref (Model.forward_collect !model (Matrix.take_row mnist.ver_x !image_row)) in
-  set_mnist_image mnist_ba (Matrix.take_row mnist.ver_x !image_row);
+  let curr_input = ref (Matrix.take_row mnist.ver_x !image_row) in
+  let output = ref (Model.forward_collect !model !curr_input) in
+  set_mnist_image mnist_ba !curr_input;
 
   Sdl.create_rgb_surface
     ~w:screen_width ~h:screen_height ~depth:32
@@ -91,13 +92,44 @@ let window_loop (r: Sdl.renderer) =
   render_model !model !output model_r;
   let model_text = ref (Sdl.create_texture_from_surface r model_surf >>= fun text -> text) in
 
-  let update_image () =
-    let row = (Matrix.take_row mnist.ver_x !image_row) in
-    output := Model.forward_collect !model row;
-    set_mnist_image mnist_ba row;
+  let update_screen () =
+    output := Model.forward_collect !model !curr_input;
+    set_mnist_image mnist_ba !curr_input;
 
     render_model !model !output model_r;
     model_text := Sdl.create_texture_from_surface r model_surf >>= fun text -> text;
+  in
+
+  let set_image_from_trainset () =
+    curr_input := Matrix.take_row mnist.ver_x !image_row;
+    update_screen ()
+  in
+
+  let mnist_text_scale = 10 in
+  let mnist_text_size = 28 * mnist_text_scale in
+  let mnist_text_offset = 20 in
+
+  let mouse_but_down = ref `None in
+  let mouse_motion (mousex: int) (mousey: int) =
+    let x = (mousex - (screen_width - mnist_text_size - mnist_text_offset)) / mnist_text_scale in
+    let y = (mousey - mnist_text_offset) / mnist_text_scale in
+    if x >= 0 && y >= 0 && x < 28 && y < 28
+    then (
+      let color = if !mouse_but_down = `Left then 1.0 else 0.0 in
+      let put x y mul =
+        if x >= 0 && y >= 0 && x < 28 && y < 28
+        then Matrix.set_with !curr_input 0 ((y * 28) + x)
+               (fun x -> if x < (color *. mul) || color = 0. then (color *. mul) else x)
+      in
+
+      put x y 1.0;
+      put (x+1) y 0.3;
+      put (x-1) y 0.6;
+      put x (y+1) 0.5;
+      put x (y-1) 0.7;
+
+      set_mnist_image mnist_ba !curr_input;
+    )
   in
 
   let quit = ref false in
@@ -106,19 +138,37 @@ let window_loop (r: Sdl.renderer) =
       match Sdl.Event.(enum (get e typ)) with
       | `Quit -> quit := true
       | `Key_down -> (
-         match Sdl.(get_key_name Event.(get e keyboard_keycode)) with
-         | "Left" -> image_row := !image_row - 1;
-                     if !image_row < 0
-                     then image_row := mnist.ver_x.rows - 11;
-                     update_image ()
-         | "Right" -> image_row := !image_row + 1;
-                      if !image_row = mnist.ver_x.rows
-                      then image_row := 0;
-                      update_image ()
-         | "Up" -> image_row := Random.int mnist.ver_x.rows;
-                   update_image ()
-         | _ -> ()
+        match Sdl.(get_key_name Event.(get e keyboard_keycode)) with
+        | "Left" -> image_row := !image_row - 1;
+                    if !image_row < 0
+                    then image_row := mnist.ver_x.rows - 11;
+                    set_image_from_trainset ()
+        | "Right" -> image_row := !image_row + 1;
+                     if !image_row = mnist.ver_x.rows
+                     then image_row := 0;
+                     set_image_from_trainset ()
+        | "Up" -> image_row := Random.int mnist.ver_x.rows;
+                  set_image_from_trainset ()
+        | "Down" -> Array.fill !curr_input.arr 0 (Array.length !curr_input.arr) 0.;
+                    update_screen ()
+        | _ -> ()
       )
+      | `Mouse_button_down -> (
+        mouse_but_down :=
+          match Sdl.Event.(get e mouse_button_button) with
+          | 1 -> `Left
+          | 3 -> `Right
+          | _ -> !mouse_but_down
+      )
+      | `Mouse_button_up ->
+         if !mouse_but_down != `None
+         then (
+           update_screen ()
+         );
+         mouse_but_down := `None
+      | `Mouse_motion ->
+         if !mouse_but_down != `None
+         then mouse_motion Sdl.Event.(get e mouse_motion_x) Sdl.Event.(get e mouse_motion_y)
       | _ -> ()
     done;
 
@@ -129,9 +179,8 @@ let window_loop (r: Sdl.renderer) =
     Sdl.render_copy r !model_text >>= fun () ->
 
     Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () ->
-    let mnist_text_size = 28*10 in
     let mnist_text_dst = Sdl.Rect.create
-                           ~x:(screen_width - mnist_text_size - 20) ~y:20
+                           ~x:(screen_width - mnist_text_size - mnist_text_offset) ~y:mnist_text_offset
                            ~w:mnist_text_size ~h:mnist_text_size in
     Sdl.render_copy r mnist_text ~dst:mnist_text_dst >>= fun () ->
 
@@ -145,7 +194,7 @@ let window_loop (r: Sdl.renderer) =
            Sdl.create_texture_from_surface r text_surf >>= fun text_text ->
            Ttf.size_text font text_str >>= fun (text_x, text_y) ->
            let text_rect = Sdl.Rect.create
-                             ~x:(screen_width - text_x - 20) ~y:((28*10) + 40 + (text_y * !eval_str_pos))
+                             ~x:(screen_width - text_x - mnist_text_offset) ~y:((28*10) + (mnist_text_offset * 2) + (text_y * !eval_str_pos))
                              ~w:text_x ~h:text_y in
            Sdl.render_copy r text_text ~dst:text_rect >>= fun () ->
            eval_str_pos := !eval_str_pos + 1

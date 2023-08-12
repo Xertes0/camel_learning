@@ -30,11 +30,14 @@ the results to `mnist.model` file, which then can be loaded by
 
 You can use following keys to manipulate the demo:
 
-| Key     | Action                                          |
-|---------|-------------------------------------------------|
-| `Left`  | Select previous image from the verification set |
-| `Right` | Select next     image from the verification set |
-| `Up`    | Select random   image from the verification set |
+| Key           | Action                                          |
+|---------------|-------------------------------------------------|
+| `Arrow Left`  | Select previous image from the verification set |
+| `Arrow Right` | Select next     image from the verification set |
+| `Arrow Up`    | Select random   image from the verification set |
+| `Arrow Down`  | Clear image                                     |
+| `Mouse Left`  | Draw on image                                   |
+| `Mouse Right` | Erase from image                                |
 
 ## Algorithms
 
