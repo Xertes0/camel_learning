@@ -14,7 +14,7 @@ There is a working model trained on the
 [MNIST](http://yann.lecun.com/exdb/mnist/) database.
 
 To run the SDL demo you first need to train the model using
-`examples/mnist_train.ml`.
+`examples/mnist_train`.
 
 By default it trains using sigmoid activation function and learning
 rate of 1.0, this is what I found to be the best configuration, but
@@ -24,7 +24,7 @@ better results.
 
 Interrupting the program with `C-c` will stop the training and save
 the results to `mnist.model` file, which then can be loaded by
-`examples/mnist_sdl.ml` to visualize the model.
+`examples/mnist_sdl` to visualize the model.
 
 ### Keybindings
 
@@ -52,3 +52,35 @@ Implemented activation functions to choose from are:
 
  - [Sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function),
  - [ReLU](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)).
+
+## Build and run
+
+The library itself does not depend on anything but to build the
+examples you will need:
+
+ - [`dune`](https://dune.build/) build system,
+ - `tsdl` and `tsdl-ttf` packages, which provide bindings to the SDL C library.
+
+I recommend installing them through [`opam`](https://opam.ocaml.org/) package manager.
+
+Now you can build and run the example applications.
+```bash
+dune exec examples/adder.exe
+dune exec examples/xor_gate.exe
+dune exec examples/or_gate.exe
+```
+
+### MNIST visualization
+
+To run the MNIST demo you will need to download the database from
+their [website](http://yann.lecun.com/exdb/mnist/). Put those 4 files
+preferably in `mnist` directory.
+
+As described [previously](#mnist-model-visualization), you first need
+to train the model using `examples/mnist_train`, then run
+`examples/mnist_sdl`. You can use these commands:
+
+```bash
+dune exec examples/mnist_train.exe ./mnist
+dune exec examples/mnist_sdl.exe ./mnist
+```
