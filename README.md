@@ -26,6 +26,16 @@ Interrupting the program with `C-c` will stop the training and save
 the results to `mnist.model` file, which then can be loaded by
 `examples/mnist_sdl.ml` to visualize the model.
 
+### Keybindings
+
+You can use following keys to manipulate the demo:
+
+| Key     | Action                                          |
+|---------|-------------------------------------------------|
+| `Left`  | Select previous image from the verification set |
+| `Right` | Select next     image from the verification set |
+| `Up`    | Select random   image from the verification set |
+
 ## Algorithms
 
 Currently the two supported methods of learning are:
