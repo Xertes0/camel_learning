@@ -97,6 +97,8 @@ let window_loop (r: Sdl.renderer) =
     set_mnist_image mnist_ba !curr_input;
 
     render_model !model !output model_r;
+
+    Sdl.destroy_texture !model_text;
     model_text := Sdl.create_texture_from_surface r model_surf >>= fun text -> text;
   in
 
@@ -191,13 +193,18 @@ let window_loop (r: Sdl.renderer) =
     |> List.iter (fun (i, x) ->
            let text_str = Printf.sprintf "%i: %f" i (x *. 100.) in
            Ttf.render_text_solid font text_str font_color >>= fun text_surf ->
+           (* It would be ideal to cache the textures and reuse them. *)
            Sdl.create_texture_from_surface r text_surf >>= fun text_text ->
+           Sdl.free_surface text_surf;
+
            Ttf.size_text font text_str >>= fun (text_x, text_y) ->
            let text_rect = Sdl.Rect.create
                              ~x:(screen_width - text_x - mnist_text_offset) ~y:((28*10) + (mnist_text_offset * 2) + (text_y * !eval_str_pos))
                              ~w:text_x ~h:text_y in
            Sdl.render_copy r text_text ~dst:text_rect >>= fun () ->
-           eval_str_pos := !eval_str_pos + 1
+           eval_str_pos := !eval_str_pos + 1;
+
+           Sdl.destroy_texture text_text
          );
 
     Sdl.render_present r;
