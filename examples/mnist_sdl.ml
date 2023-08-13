@@ -1,5 +1,3 @@
-(* TODO: Move repeated definitions to a separate file *)
-
 open Camel_learning
 open Tsdl
 open Tsdl_ttf
@@ -8,19 +6,14 @@ let screen_width = 1280
 let screen_height = 720
 
 let font_color = Sdl.Color.create ~r:0xEF ~g:0xEF ~b:0xEF ~a:255
+let mnist_text_scale = 10
+let mnist_text_size = 28 * mnist_text_scale
+let mnist_text_offset = 20
 
 let ( >>= ) x f =
   match x with
   | Error (`Msg e) -> failwith (Printf.sprintf "Error %s" e)
   | Ok a -> f a
-
-let set_mnist_image (ba: ('a, 'b, 'c) Bigarray.Array1.t) (row: Matrix.t): unit =
-  for i = 0 to (28 * 28) - 1 do
-    let pixel = Matrix.get row 0 i
-                |> ( *. ) 255.
-                |> Int32.of_float in
-    ba.{i} <- Int32.logor pixel (Int32.logor (Int32.shift_left pixel 8) (Int32.shift_left pixel 16));
-  done
 
 let render_model (model: Model.t) (act: Matrix.t array) (r: Sdl.renderer): unit =
   Sdl.set_render_draw_color r
@@ -62,56 +55,122 @@ let render_model (model: Model.t) (act: Matrix.t array) (r: Sdl.renderer): unit 
   done;
   Sdl.render_present r
 
-let window_loop (r: Sdl.renderer) =
-  let e = Sdl.Event.create () in
-  Ttf.open_font "./font.ttf" 24 >>= fun font ->
+let update_mnist_texture (text: Sdl.texture) (row: Matrix.t): unit =
+  let mnist_ba =
+    Bigarray.Array1.init
+      Bigarray.int32
+      Bigarray.c_layout
+      (28 * 28)
+      (fun i ->
+        let pixel = Matrix.get row 0 i
+                    |> ( *. ) 255.
+                    |> Int32.of_float in
+        Int32.logor pixel (Int32.logor (Int32.shift_left pixel 8) (Int32.shift_left pixel 16))) in
+  Sdl.update_texture text None mnist_ba 28 >>= fun () -> ()
 
+type sidebar_el =
+  { dst_rect : Sdl.rect;
+    text: Sdl.texture;
+  }
+
+let make_sidebar ~(renderer: Sdl.renderer) ~(font: Ttf.font) ~(curr_out: Matrix.t array): sidebar_el list =
+  Seq.zip (List.to_seq [0;1;2;3;4;5;6;7;8;9]) (Array.to_seq curr_out.(Array.length curr_out - 1).arr)
+  |> List.of_seq
+  |> List.sort (fun (_, x1) (_, x2) -> compare x2 x1)
+  |> List.mapi (fun j (i, x) ->
+         let text_str = Printf.sprintf "%i: %f" i (x *. 100.) in
+         Ttf.render_text_solid font text_str font_color >>= fun text_surf ->
+         Sdl.create_texture_from_surface renderer text_surf >>= fun text_text ->
+         Sdl.free_surface text_surf;
+
+         Ttf.size_text font text_str >>= fun (text_x, text_y) ->
+         let text_rect = Sdl.Rect.create
+                           ~x:(screen_width - text_x - mnist_text_offset) ~y:((28*10) + (mnist_text_offset * 2) + (text_y * j))
+                           ~w:text_x ~h:text_y in
+         { dst_rect = text_rect;
+           text = text_text;
+         }
+       )
+
+type vis_state =
+  { renderer : Sdl.renderer;
+    font : Ttf.font;
+    model : Model.t;
+    curr_in : Matrix.t;
+    (* curr_out : Matrix.t array; *)
+    mnist_text : Sdl.texture;
+    model_surf : Sdl.surface;
+    model_r : Sdl.renderer;
+    model_text : Sdl.texture;
+    sidebar : sidebar_el list;
+  }
+
+let new_model_texture (state: vis_state): Sdl.texture =
+  Sdl.destroy_texture state.model_text;
+  Sdl.create_texture_from_surface state.renderer state.model_surf >>= fun text -> text
+
+let new_vis_input (state: vis_state) (inp: Matrix.t): vis_state =
+  let new_out = Model.forward_collect state.model inp in
+
+  update_mnist_texture state.mnist_text inp;
+
+  render_model state.model new_out state.model_r;
+  let new_model_text = new_model_texture state in
+
+  let new_sidebar = make_sidebar ~renderer:state.renderer ~font:state.font ~curr_out:new_out in
+  List.iter (fun el ->
+      Sdl.destroy_texture el.text
+    ) state.sidebar;
+
+  { state with
+    curr_in = inp;
+    model_text = new_model_text;
+    sidebar = new_sidebar;
+  }
+
+let make_state ~(renderer: Sdl.renderer) ~(font: Ttf.font) ~(model: Model.t) ~(inp: Matrix.t): vis_state =
+  (* Mnist image *)
   Sdl.create_texture
-    r
+    renderer
     Sdl.Pixel.format_rgb888 Sdl.Texture.access_streaming
     ~w:28 ~h:28 >>= fun mnist_text ->
-  let mnist_ba = Bigarray.Array1.create
-                   Bigarray.int32
-                   Bigarray.c_layout
-                   (28 * 28) in
+  update_mnist_texture mnist_text inp;
 
-  let mnist = Mnist_common.mnist_from_path Sys.argv.(1) in
-  let shape = [| 784; 128; 10; |] in
-  let model = ref (Model.random shape ~actf:Act_func.sigmoid ()) in
-  model := Model.load_from_file !model "mnist.model";
-
-  let image_row = ref 0 in
-  let curr_input = ref (Matrix.take_row mnist.ver_x !image_row) in
-  let output = ref (Model.forward_collect !model !curr_input) in
-  set_mnist_image mnist_ba !curr_input;
-  Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () ->
+  (* Model *)
+  let curr_out = Model.forward_collect model inp in
 
   Sdl.create_rgb_surface
     ~w:screen_width ~h:screen_height ~depth:32
     0l 0l 0l 0l >>= fun model_surf ->
+
   Sdl.create_software_renderer model_surf >>= fun model_r ->
-  render_model !model !output model_r;
-  let model_text = ref (Sdl.create_texture_from_surface r model_surf >>= fun text -> text) in
+  render_model model curr_out model_r;
+  let model_text = Sdl.create_texture_from_surface renderer model_surf >>= fun text -> text in
 
-  let update_screen () =
-    output := Model.forward_collect !model !curr_input;
-    set_mnist_image mnist_ba !curr_input;
-    Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () ->
+  (* Sidebar *)
+  let sidebar = make_sidebar ~renderer ~font:font ~curr_out in
 
-    render_model !model !output model_r;
+  { renderer = renderer;
+    font = font;
+    model = model;
+    curr_in = inp;
+    mnist_text = mnist_text;
+    model_surf = model_surf;
+    model_r = model_r;
+    model_text = model_text;
+    sidebar = sidebar;
+  }
 
-    Sdl.destroy_texture !model_text;
-    model_text := Sdl.create_texture_from_surface r model_surf >>= fun text -> text;
-  in
+let window_loop (r: Sdl.renderer) =
+  let e = Sdl.Event.create () in
+  Ttf.open_font "./font.ttf" 24 >>= fun font ->
 
-  let set_image_from_trainset () =
-    curr_input := Matrix.take_row mnist.ver_x !image_row;
-    update_screen ()
-  in
-
-  let mnist_text_scale = 10 in
-  let mnist_text_size = 28 * mnist_text_scale in
-  let mnist_text_offset = 20 in
+  let mnist = Mnist_common.mnist_from_path Sys.argv.(1) in
+  let state = ref (make_state
+                     ~renderer:r
+                     ~font
+                     ~model:(Model.load_from_file (Model.random [| 784; 128; 10; |] ~actf:Act_func.sigmoid ()) "mnist.model")
+                     ~inp:(Matrix.take_row mnist.ver_x 0)) in
 
   let mouse_but_down = ref `None in
   let mouse_motion (mousex: int) (mousey: int) =
@@ -122,7 +181,7 @@ let window_loop (r: Sdl.renderer) =
       let color = if !mouse_but_down = `Left then 1.0 else 0.0 in
       let put x y mul =
         if x >= 0 && y >= 0 && x < 28 && y < 28
-        then Matrix.set_with !curr_input 0 ((y * 28) + x)
+        then Matrix.set_with !state.curr_in 0 ((y * 28) + x)
                (fun x -> if x < (color *. mul) || color = 0. then (color *. mul) else x)
       in
 
@@ -132,9 +191,13 @@ let window_loop (r: Sdl.renderer) =
       put x (y+1) 0.5;
       put x (y-1) 0.7;
 
-      set_mnist_image mnist_ba !curr_input;
-      Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () -> ()
+      update_mnist_texture !state.mnist_text !state.curr_in
     )
+  in
+
+  let last_set_row = ref 0 in
+  let set_image_from_trainset (row: int) =
+    state := new_vis_input !state (Matrix.take_row mnist.ver_x row);
   in
 
   let quit = ref false in
@@ -144,18 +207,16 @@ let window_loop (r: Sdl.renderer) =
       | `Quit -> quit := true
       | `Key_down -> (
         match Sdl.(get_key_name Event.(get e keyboard_keycode)) with
-        | "Left" -> image_row := !image_row - 1;
-                    if !image_row < 0
-                    then image_row := mnist.ver_x.rows - 11;
-                    set_image_from_trainset ()
-        | "Right" -> image_row := !image_row + 1;
-                     if !image_row = mnist.ver_x.rows
-                     then image_row := 0;
-                     set_image_from_trainset ()
-        | "Up" -> image_row := Random.int mnist.ver_x.rows;
-                  set_image_from_trainset ()
-        | "Down" -> Array.fill !curr_input.arr 0 (Array.length !curr_input.arr) 0.;
-                    update_screen ()
+        | "Left" -> last_set_row := !last_set_row - 1;
+                    if !last_set_row < 0
+                    then last_set_row := mnist.ver_x.rows - 11;
+                    set_image_from_trainset !last_set_row
+        | "Right" -> last_set_row := !last_set_row + 1;
+                     if !last_set_row = mnist.ver_x.rows
+                     then last_set_row := 0;
+                     set_image_from_trainset !last_set_row
+        | "Up" -> set_image_from_trainset (Random.int mnist.ver_x.rows)
+        | "Down" -> state := new_vis_input !state (Matrix.zeros 1 (28*28))
         | _ -> ()
       )
       | `Mouse_button_down -> (
@@ -168,7 +229,7 @@ let window_loop (r: Sdl.renderer) =
       | `Mouse_button_up ->
          if !mouse_but_down != `None
          then (
-           update_screen ()
+           state := new_vis_input !state !state.curr_in
          );
          mouse_but_down := `None
       | `Mouse_motion ->
@@ -181,33 +242,19 @@ let window_loop (r: Sdl.renderer) =
       0x0F 0x0F 0x0F 0xFF >>= fun () ->
     Sdl.render_clear r >>= fun () ->
 
-    Sdl.render_copy r !model_text >>= fun () ->
+    (* Model *)
+    Sdl.render_copy r !state.model_text >>= fun () ->
 
+    (* Mnist image *)
     let mnist_text_dst = Sdl.Rect.create
                            ~x:(screen_width - mnist_text_size - mnist_text_offset) ~y:mnist_text_offset
                            ~w:mnist_text_size ~h:mnist_text_size in
-    Sdl.render_copy r mnist_text ~dst:mnist_text_dst >>= fun () ->
+    Sdl.render_copy r !state.mnist_text ~dst:mnist_text_dst >>= fun () ->
 
-    let eval_str_pos = ref 0 in
-    Seq.zip (List.to_seq [0;1;2;3;4;5;6;7;8;9]) (Array.to_seq !output.(Array.length !output - 1).arr)
-    |> List.of_seq
-    |> List.sort (fun (_, x1) (_, x2) -> compare x2 x1)
-    |> List.iter (fun (i, x) ->
-           let text_str = Printf.sprintf "%i: %f" i (x *. 100.) in
-           Ttf.render_text_solid font text_str font_color >>= fun text_surf ->
-           (* It would be ideal to cache the textures and reuse them. *)
-           Sdl.create_texture_from_surface r text_surf >>= fun text_text ->
-           Sdl.free_surface text_surf;
-
-           Ttf.size_text font text_str >>= fun (text_x, text_y) ->
-           let text_rect = Sdl.Rect.create
-                             ~x:(screen_width - text_x - mnist_text_offset) ~y:((28*10) + (mnist_text_offset * 2) + (text_y * !eval_str_pos))
-                             ~w:text_x ~h:text_y in
-           Sdl.render_copy r text_text ~dst:text_rect >>= fun () ->
-           eval_str_pos := !eval_str_pos + 1;
-
-           Sdl.destroy_texture text_text
-         );
+    (* Sidebar *)
+    List.iter (fun el ->
+        Sdl.render_copy r el.text ~dst:el.dst_rect >>= fun () -> ()
+      ) !state.sidebar;
 
     Sdl.render_present r;
     Sdl.delay 1l
