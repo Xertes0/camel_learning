@@ -84,6 +84,7 @@ let window_loop (r: Sdl.renderer) =
   let curr_input = ref (Matrix.take_row mnist.ver_x !image_row) in
   let output = ref (Model.forward_collect !model !curr_input) in
   set_mnist_image mnist_ba !curr_input;
+  Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () ->
 
   Sdl.create_rgb_surface
     ~w:screen_width ~h:screen_height ~depth:32
@@ -95,6 +96,7 @@ let window_loop (r: Sdl.renderer) =
   let update_screen () =
     output := Model.forward_collect !model !curr_input;
     set_mnist_image mnist_ba !curr_input;
+    Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () ->
 
     render_model !model !output model_r;
 
@@ -131,6 +133,7 @@ let window_loop (r: Sdl.renderer) =
       put x (y-1) 0.7;
 
       set_mnist_image mnist_ba !curr_input;
+      Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () -> ()
     )
   in
 
@@ -180,7 +183,6 @@ let window_loop (r: Sdl.renderer) =
 
     Sdl.render_copy r !model_text >>= fun () ->
 
-    Sdl.update_texture mnist_text None mnist_ba 28 >>= fun () ->
     let mnist_text_dst = Sdl.Rect.create
                            ~x:(screen_width - mnist_text_size - mnist_text_offset) ~y:mnist_text_offset
                            ~w:mnist_text_size ~h:mnist_text_size in
